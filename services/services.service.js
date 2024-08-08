@@ -133,19 +133,23 @@ class Services{
 
      listado.forEach(item => {
     item.frotis.forEach(frotis => {
-      const key = `${item.os}-${frotis.fecha_frotis}-${frotis.isotopo}`;
-      if (!grouped[key]) {
-        grouped[key] = {
-          os: item.os,
-          razon_social: item.razon_social,
-          isotopo: frotis.isotopo,
-          fecha_frotis: frotis.fecha_frotis,
-          frotis: [],
-          data_service:item
-        };
+      if(frotis.status !== 'Realizado'){
+        const key = `${item.os}-${frotis.fecha_frotis}-${frotis.isotopo}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            os: item.os,
+            razon_social: item.razon_social,
+            isotopo: frotis.isotopo,
+            fecha_frotis: frotis.fecha_frotis,
+            frotis: [],
+            data_service:item
+          };
+        }
+        grouped[key].frotis.push(frotis);
       }
-      grouped[key].frotis.push(frotis);
-      });
+
+      }
+    )
     });
     const groupedFrotis= Object.values(grouped);
 
@@ -169,6 +173,7 @@ class Services{
 
     try {
       await db.collection(this.collection + a ).doc(id_doc).update({frotis:newArrayFrotis})
+
     return { success:true,data:[prevFrotis,frotisRealizados,newArrayFrotis],message:'REGISTRADOS'}
 
     } catch (error) {
@@ -181,6 +186,40 @@ class Services{
 
 
 
+  }
+
+  async createInform(a,data){
+
+    data.forEach(async(item)=>{
+      const inform = await db.collection(`infoPF${a}`).add(item)
+      if(!inform.id){
+        return { success: false, message:'Algo salio mal'}
+      }
+    })
+
+
+
+    return { success: true}
+
+  }
+  async getAllServicesYear(a){
+
+    try {
+      const fetch = await db.collection(`infoPF${a}`).orderBy('num_informe','desc').get();
+      const services = fetch.docs.map(item=>({id:item.id,...item.data()}))
+      return {success:true, data:services}
+    } catch (error) {
+      return { success:false, message:`Algo salio mal: [ERROR] ${error}`}
+    }
+  }
+
+  async getLast(a){
+    const informs = await db.collection(`infoPF${a}`).get();
+    const documentCount = informs.size;
+
+    console.log('LAST',documentCount)
+
+    return { success:true , data:documentCount}
   }
 
 

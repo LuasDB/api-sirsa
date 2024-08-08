@@ -17,6 +17,7 @@ const server = require('http').Server(app);
 const cors = require('cors')
 
 const { logErrors, errorHandle } = require('./middleware/error.handler')
+const { authenticateToken } = require('./middleware/authenticateToken')
 
 
 app.use(cors());

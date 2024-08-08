@@ -38,8 +38,8 @@ class Curtomers{
   async getAll(){
     const fetch = await db.collection(this.collection).where('status','==','Activo').get()
     const customers = fetch.docs.map(item =>({id:item.id, ...item.data()}))
-
-    return { success:true, data:ordenarPor(customers,'razon_social')}
+    console.log(customers)
+    return { success:true, data:ordenarPor(customers,'nombre')}
   }
   async getOne(id){
     const fetch = await db.collection(this.collection).doc(id).get()

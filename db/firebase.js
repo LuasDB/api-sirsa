@@ -8,17 +8,20 @@ const server = process.env.URL_SERVER
 const admin = require('firebase-admin');
 // const serviceAccount = require('./paginasaul-eabef-firebase-adminsdk-3o5l4-71f2ad441d.json');
 const firebaseConfig = require('./../credentialsSirsa.json')
+// const firebaseConfig = require('./../credentialsSAMAR.json')
+
 
 admin.initializeApp({
   credential: admin.credential.cert(firebaseConfig),
-  databaseURL: `https://${process.env.PROJECT_ID}.firebaseio.com`
+  storageBucket: `${process.env.PROJECT_ID}.appspot.com`
 
 });
 
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
 
-module.exports = {db,server,admin}
+module.exports = {db,server,admin,bucket}
 
 
 
