@@ -19,23 +19,27 @@ class Curtomers{
     this.collection='clientes'
   }
 
-  async create(data){
-    data['cambios']=[]
+  async create(data) {
+    try {
+      const getCustomer = await db.collection(this.collection).where('rfc', '==', data.rfc).get();
 
-    const customers =await this.getAll()
-    if(customers.data.some(item=>item.razon_social === data.razon_social)){
-      return { success:false, message:'La razón social ya existe'}
+      if (!getCustomer.empty) {
+        console.log('Cliente ya existe');
+        return { exists: true };  // Retorna un objeto que indica que ya existe
+      }
+
+      await db.collection(this.collection).add(data);
+      return { success: true };  // Retorna un objeto indicando que se creó correctamente
+    } catch (error) {
+      console.error('Error al crear el cliente:', error);
+      throw new Error('Error al crear el cliente');
     }
-    const newCustomer = await db.collection(this.collection).add({...data})
-    if(newCustomer.id){
-      return { success:true, data:{id:newCustomer.id,...data}}
-    }else{
-      return { success:false, message:'Algo salio mal'}
-    }
-
-
   }
+
+
+
   async getAll(){
+    console.log('[PASO1]')
     const fetch = await db.collection(this.collection).where('status','==','Activo').get()
     const customers = fetch.docs.map(item =>({id:item.id, ...item.data()}))
     console.log(customers)

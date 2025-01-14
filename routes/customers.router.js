@@ -48,37 +48,36 @@ router.get('/:id',async(req,res,next)=>{
 
 
 })
-router.post('/',upload.any(),async(req,res,next)=>{
+router.post('/', upload.any(), async (req, res, next) => {
+  const { body } = req;
   try {
+    const newCustomer = await customer.create(body);
 
-    const {body,files} = req
-    let data ={}
-
-
-    if(files){
-      console.log('[FILE RECIVED]')
-      files.forEach(item=>{
-        if(item.fieldname === 'ine'){
-          data['none']=item.filename
-        }
-        if(item.fieldname === 'licencia'){
-          data['none']=item.filename
-        }
-      })
+    if (newCustomer.exists) {
+      // Cliente ya existe, retorna un código 409 con un mensaje claro
+      return res.status(409).json({
+        success: false,
+        message: 'El cliente ya se encuentra registrado'
+      });
     }
 
-    data= {...data,...body}
-    console.log('[RECIBIDO]:',data)
-    let create = await customer.create(data);
-    //Si se realiza el alta enviamos un res con el status code 201 de CREADO , en formato json donde encviamos lo que llego a newUser
-    res.status(201).json(create);
+    if (newCustomer.success) {
+      // Cliente creado exitosamente
+      return res.status(201).json({
+        success: true,
+        message: 'Cliente creado exitosamente'
+      });
+    }
 
   } catch (error) {
-    next(error)
+    // Error general en el servidor
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error en el servidor'
+    });
   }
-
-
-})
+});
 
 router.patch('/:id',upload.any(),async(req,res,next)=>{
   const { id } = req.params

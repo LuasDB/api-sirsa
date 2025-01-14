@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const Service = require("../services/services.service.js");
 const multer = require('multer');
+
+
+const {configUploadInforms} = require('./../middleware/uploadInforms.js')
+
+
+
 const uploadNone = multer();
 const path = require('path');
 const fs = require('fs');
@@ -28,8 +34,11 @@ const service  = new Service();
 router.get('/:year',async(req,res,next)=>{
   try {
     const {year} = req.params
-   const getAll = await service.getAllYear(year)
-   res.status(200).json(getAll);
+   const getAll = await service.getActives(year)
+   res.status(200).json({
+    success:true,
+    data:getAll
+   });
 
   } catch (error) {
    next(error)
@@ -46,13 +55,15 @@ router.get('/all-services/:year',async(req,res,next)=>{
    next(error)
   }
 })
-
 router.get('/:id/:a',async(req,res,next)=>{
-
+  console.log('ENtrando a buecar uno')
   const { id,a } = req.params
   try {
   const getOne = await service.getOne(id,a);
-  res.status(200).json(getOne);
+  res.status(200).json({
+    success: true,
+    data: getOne
+  });
   } catch (error) {
     next(error)
   }
@@ -64,7 +75,7 @@ router.get('/:id/:a',async(req,res,next)=>{
 router.get('/reception/frotis/:a',async(req,res,next)=>{
 
   const { a } = req.params
-  console.log('AÑO EN RUTER',a)
+
 
   try {
   const getFrotis = await service.getFrotis(a);
@@ -122,6 +133,30 @@ router.get('/last-inform/p/o/i/u/y/:a',async(req,res,next)=>{
 
 })
 
+router.get('/edit/informs/in/a/data/for/one/:a/:num',async(req,res,next)=>{
+  const { a,num } = req.params
+  try {
+    const editOne = await service.editInform(a,num);
+    res.status(200).json(editOne);
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/edit/informs/in/a/data/for/one/:a/:num',async(req,res,next)=>{
+  const { a,num } = req.params
+  const { body } = req
+  try {
+    const editOne = await service.updateInform(a,num,body);
+    if(editOne.success){
+      res.status(200).json({success:true, message:'Actualizado'});
+
+    }
+  } catch (error) {
+    next(error)
+  }
+})
+
 router.patch('/frotis-list/in-progress/:a',upload.none(),async(req,res,next)=>{
   const {a} = req.params
   const { body } = req
@@ -138,7 +173,6 @@ router.patch('/frotis-list/in-progress/:a',upload.none(),async(req,res,next)=>{
 
 
 })
-
 router.post('/',upload.any(),async(req,res,next)=>{
   try {
 
@@ -175,17 +209,36 @@ router.post('/create-inform/:a', upload.none(),async(req,res,next)=>{
     next(error)
   }
 
+})
+router.post('/uploads-informs/:a',configUploadInforms,(req,res,next)=>{
+  const uploadMiddleware = req.uploadInform.array('files')
+
+  uploadMiddleware(req,res,async(err)=>{
+    if(err){
+      return res.status(500).json({success:false,message:'error en servidor',err})
+    }
+
+    const { files } = req
+    const { a } = req.params
+
+    try {
+      const addFiles = await service.addFiles(a,files)
+      return res.status(201).json({success:true, message:'Archivos subidos con éxito'})
+
+    } catch (error) {
+      return res.status(500).json({success:false,message:'error en servidor',error})
+
+    }
+  })
 
 })
-
-
-router.patch('/:id',upload.any(),async(req,res,next)=>{
-  const { id } = req.params
+router.patch('/:id/:a',upload.any(),async(req,res,next)=>{
+  const { id,a } = req.params
   const { body } =req
 
 
   try {
-    const update = await service.updateOne(id,body);
+    const update = await service.updateOne(id,body,a);
     res.status(200).json(update);
 
 

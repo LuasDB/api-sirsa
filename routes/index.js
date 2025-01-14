@@ -19,8 +19,5 @@ function routerApi(app){
     router.use('/platform/pf',platformPfRouter);
 
 
-
-
-
 }
 module.exports=routerApi;
