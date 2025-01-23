@@ -7,6 +7,7 @@ const customersRouter = require("./customers.router.js");
 const authRouter = require("./auth.router.js");
 const platformAuthRouter = require("./platformAuth.router.js")
 const platformPfRouter = require("./platformPf.router.js")
+const arriveCalRouter = require("./calibrations.router.js")
 
 function routerApi(app){
     const router = express.Router();
@@ -17,6 +18,13 @@ function routerApi(app){
     router.use('/auth',authRouter);
     router.use('/platform/auth',platformAuthRouter);
     router.use('/platform/pf',platformPfRouter);
+
+    //Para servicio de calibración
+    router.use('/calibrations/',arriveCalRouter)
+
+
+
+
 
 
 }

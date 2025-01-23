@@ -1,7 +1,6 @@
 const { experimentalSetDeliveryMetricsExportedToBigQueryEnabled } = require('firebase/messaging/sw');
 const { db,admin } = require('../db/firebase');
 const { connectStorageEmulator } = require('firebase/storage');
-const {getFromCache,setInCache,updateInCache} = require('./../db/cache')
 const calcularFechaObjetivo = require('./../functions/getDatesObj')
 
 
