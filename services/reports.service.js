@@ -5,9 +5,10 @@ class Reports{
     this.collection = 'informesPF'
   }
   async getAll(year, id) {
+
+
     try {
       const getReports = await db.collection(`${this.collection}${year}`).where('clienteId', '==', id).get();
-
       const reports = [];
 
       for (const item of getReports.docs) {
@@ -17,7 +18,7 @@ class Reports{
 
         const [url] = await file.getSignedUrl({
           action: 'read',
-          expires: '03-17-2025' // Puedes cambiar la fecha de expiración si lo necesitas
+          expires: '03-17-2028' // Puedes cambiar la fecha de expiración si lo necesitas
         });
 
         reports.push({ id: item.id, ...item.data(), url });

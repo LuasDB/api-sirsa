@@ -1,10 +1,14 @@
-const { db,admin } = require('../db/firebase')
+// const { db,admin } = require('../db/firebase')
+const { database,client } = require('./../db/mongodb')
+const jwt = require('jsonwebtoken')
+const bcrypt = require('bcryptjs')
+const Boom = require('@hapi/boom')
+require('dotenv').config();
+
 const { restablecerPass } = require('./../machotes/restablecerPass')
 const { connectStorageEmulator } = require('firebase/storage')
 const  ordenarPor  = require('../functions/order')
-const jwt = require('jsonwebtoken')
-const bcrypt = require('bcryptjs')
-require('dotenv').config();
+
 
 const nodemailer = require('nodemailer')
 const transpoter = nodemailer.createTransport({
@@ -16,6 +20,7 @@ const transpoter = nodemailer.createTransport({
 })
 const fs = require('fs');
 const path = require('path');
+const { ObjectId } = require('mongodb')
 
 
 
@@ -37,59 +42,70 @@ class Auth{
   }
 
   async create(data){
-    const { correo, password } = data
-    const exist =await this.getUser(correo)
-    if(exist !== null){
-      return { success:false, message:'ESTE USUARIO YA EXISTE',status:400}
-    }else{
-      data['password'] = await bcrypt.hash(password, 10);
-      const newUser = await db.collection(this.collection).add(data)
-      if(newUser.id){
-        return {success:true, message:'Usuario creado'}
-      }else{
-        return { success:false, message:'Algo salio mal, no se pudo crear ',status:500}
-
+    try{
+      const { correo, password } = data
+      if(!correo || !password){
+        throw Boom.badData('Todos los datos son necesarios')
       }
+      const user =await database.collection('usuarios').findOne({correo:correo})
+
+      if (user) {
+        throw Boom.conflict(`El usuario con correo ${correo} ya existe`)
+      }
+
+      data['password'] = await bcrypt.hash(password, 10)
+
+      const result = await database.collection('usuarios').insertOne(data)
+      return { id: result.insertedId,correo }
+
+
+    }catch(error){
+      if(Boom.isBoom(error)){
+        throw error
+      }
+      throw Boom.badImplementation('Error al registrar usuario',error)
     }
   }
-  async login(data){
 
+  async login(data) {
+    try {
+      const { correo, password } = data;
+      console.log('Intento de acceso:',correo,':',password)
+      const user = await this.getUser(correo);
 
-    const { email,  password } = data
-    console.log('SOLICITUD DE LOGIN',data)
+      if (!user) {
+        throw Boom.unauthorized('Email o passwor incorrectos')
+      }
 
-    const user = await this.getUser(email)
+      const isPasswordValid = await bcrypt.compare(password, user.password)
 
-    if(user === null){
-    console.log('SOLICITUD DE LOGIN fallida pór usuario null')
+      if (!isPasswordValid) {
+        throw Boom.unauthorized('Email o passwor incorrectos')
+      }
 
-      return { success:false, message:'Usuario o contraseña incorrectos [1]', status:404}
+      const payload = { _id:user._id,nombre:user.nombre}
+
+      const token = jwt.sign(payload, this.SECRET_KEY, { expiresIn: '4h' });
+
+      return token
+    } catch (error) {
+      if(Boom.isBoom(error)){
+        throw error
+      }
+      throw Boom.badImplementation('Error al registrar usuario',error)
     }
-    console.log('ESTE ES EL USUARIO:',user)
-    // Verificamos la contraseña
-    const isPasswordValid = await bcrypt.compare(password,user.password)
-    if(!isPasswordValid){
-      return { success:false, message:'Usuario o contraseña incorrectos',status:400}
-    }
-    delete user.password
-    const token = jwt.sign(user,this.SECRET_KEY,{expiresIn:'4h'})
-
-
-
-    return { success:true, status:200, data:{token,user}}
-
   }
-  async getUser(correo){
-    const documents =  await db.collection(this.collection).where('correo','==',correo).get()
-    if(documents.empty){
-      return null
+
+  async getUser(correo) {
+    try {
+
+      return await database.collection('usuarios').findOne({ correo });
+    } catch (error) {
+      console.error('Error en getUser:', error);
+      throw error;
     }
-    if (documents.size > 1) {
-      throw new Error('Se encontraron múltiples usuarios con el mismo correo'); // Lanza un error si se encuentran múltiples usuarios
-    }
-    const user = documents.docs.map(item=> ({id:item.id,...item.data()}))
-    return  user[0]
   }
+
   async verifyUser(user){
 
     const newUser =await  this.getUser(user.correo)
@@ -144,7 +160,6 @@ class Auth{
     console.log('[PASO 1]',data)
 
     try {
-       // Verificar el token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId;
     console.log('[PASO 2]',decoded)
@@ -154,7 +169,12 @@ class Auth{
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     console.log('[PASO 3]',hashedPassword)
 
-     const update = await db.collection(this.collection).doc(userId).update({password:hashedPassword})
+     const update = await database.collection('usuarios').updateOne(
+      {_id:ObjectId(userId)},
+      { $set:{
+        password:hashedPassword
+      }}
+      )
 
     console.log(update)
     return { success:true, status:200, message:'Contraseña actualizada'}

@@ -385,10 +385,9 @@ class Services{
       const docs = informes.data().informes;
 
       try {
+        //Verificacion para saber si el nombre ya tiene archivo
           for (const file of files) {
               docs.forEach((doc, index) => {
-
-
                   // Comparación de nombres decodificados y normalizados
                   if (doc.nombre_pdf.split('_')[0] === file.originalname.split('_')[0]) {
                       console.log(true);

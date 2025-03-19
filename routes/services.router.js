@@ -2,16 +2,12 @@ const express = require('express');
 const router = express.Router();
 const Service = require("../services/services.service.js");
 const multer = require('multer');
-
-
 const {configUploadInforms} = require('./../middleware/uploadInforms.js')
-
-
-
 const uploadNone = multer();
 const path = require('path');
 const fs = require('fs');
 const uploadDir = 'uploads/request'
+
 if(!fs.existsSync(uploadDir)){
   fs.mkdirSync(uploadDir,{recursive:true})
 }
@@ -132,7 +128,6 @@ router.get('/last-inform/p/o/i/u/y/:a',async(req,res,next)=>{
 
 
 })
-
 router.get('/edit/informs/in/a/data/for/one/:a/:num',async(req,res,next)=>{
   const { a,num } = req.params
   try {
@@ -142,7 +137,6 @@ router.get('/edit/informs/in/a/data/for/one/:a/:num',async(req,res,next)=>{
     next(error)
   }
 })
-
 router.post('/edit/informs/in/a/data/for/one/:a/:num',async(req,res,next)=>{
   const { a,num } = req.params
   const { body } = req
@@ -156,7 +150,6 @@ router.post('/edit/informs/in/a/data/for/one/:a/:num',async(req,res,next)=>{
     next(error)
   }
 })
-
 router.patch('/frotis-list/in-progress/:a',upload.none(),async(req,res,next)=>{
   const {a} = req.params
   const { body } = req

@@ -1,3 +1,4 @@
+
 // Middleware para identificar y registrar errores en consola
 function logErrors(err, req, res, next) {
   console.error('[LOG ERROR]:');

@@ -1,39 +1,73 @@
-//importacion de la ruta para controlar el flujo
-const routerAPI = require("./routes/index")
-
-//Mandamos a llamar a express para iniciar el servidor
 const express = require('express');
-//Para la gestion de directorios en el servidor
-const fs = require('fs');
-//Variable para el envio de informacion
-const {send} = require('process');
-//Se crea variable para llamar a las funciones de express
-const app = express();
-//variable para el puerto o por defecto el puerto 3000
-const port =process.env.PORT || 3000;
-//
-const server = require('http').Server(app);
-//Instalacion de cors
-const cors = require('cors')
-
 const { logErrors, errorHandle } = require('./middleware/error.handler')
-const { authenticateToken } = require('./middleware/authenticateToken')
+const routerAPI = require("./routes/index")
+const cors = require('cors')
+const {createServer} = require('http')
+const { Server } = require('socket.io')
+const { client } = require('./db/mongodb.js')
 
 
-app.use(cors());
+const port =process.env.PORT || 3000;
+//Express
+
+const app = express();
 app.use(express.json())
-routerAPI(app);
+app.use(cors());
+const httpServer = createServer(app)
 
-//Aqui vamos a declarar los middlewares
-app.use(logErrors);
-app.use(errorHandle);
+//Socket.io
+const io = new Server(httpServer,{
+  cors:{
+    origin:`${process.env.URL_FRONTEND || '*'}`, //Para producción hay que colocar la URL del frontend
+    methods:['GET','POST']
+  }
+})
 
+io.on('connection',(socket)=>{
+  console.log('Nuevo Usuario conectado:',socket.id)
 
-//Inicio de estaticos para poder renderizar los archivos de imagen
+  socket.on('disconnect',()=>{
+    console.log('Usuario desconectado:', socket.id)
+  })
+  //aqui colocaremos los demas mensajes:
+  socket.on('mensaje', (msg) => {
+    console.log('Mensaje recibido:', msg)
+    socket.emit('response', `Bienvenido usuario ${socket.id}`)
+  });
 
-app.use('/uploads',express.static("uploads"));
-
-server.listen(port,()=>{
-    console.log('SERVIDOR INICIADO EN PUERTO:',port);
 
 })
+
+//Funcion para Iniciar el servidor
+const startServer = async()=>{
+  try {
+    await client.connect()
+    console.log('✅ Conectado a MongoDB')
+    //Rutas
+    routerAPI(app,io);
+    app.use(logErrors);
+    app.use(errorHandle);
+    app.use('/uploads',express.static("uploads"));
+
+    httpServer.listen(port,()=>{
+      console.log(`✅ Servidor iniciado en el puerto : ${port}`)
+    })
+
+
+
+
+  } catch (error) {
+    console.error('❌ Error al conectar con MongoDB:', error)
+    process.exit(1)
+  }
+}
+
+process.on('SIGINT',async()=>{
+  await client.close()
+  console.log('🛑 Conexión con MongoDB cerrada')
+  process.exit(0)
+})
+
+startServer()
+
+

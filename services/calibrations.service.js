@@ -1,5 +1,6 @@
 const { ObjectId } = require('mongodb')
 const { database,client} = require('./../db/mongodb')
+const Boom = require('@hapi/boom')
 const calcularFechaObjetivo = require('./../functions/getDatesObj')
 const nodemailer = require('nodemailer')
 const { emailNotificationTemplate } = require('./../functions/htmlTemplates')
@@ -22,109 +23,140 @@ class Calibrations{
   }
 
   async create(data,year){
+    console.log('Data a registrar',data)
 
     try{
-      await client.connect()
 
-      if(!year) throw new Error('Se requiere el año')
+      if(!year) throw Boom.badData('Se requiere el año')
 
-      const collection =await database.collection(`calibraciones${year}`)
+
+      const collection =await database.collection(`servicios${year}`)
       const doc = {
         ...data,
+        registradoPor:JSON.parse(data.registradoPor),
         status:'Arribo',
         year,
         isArrived:true
       }
 
+
       const result = await collection.insertOne(doc)
 
-      return { success:true, id:result.insertedId,message:'Registro creado'}
+      return { doc,result}
 
-    }finally{
-      await client.close();
+    }catch(error){
+      if (Boom.isBoom(error)) {
+        throw error
+      }
+      throw Boom.badImplementation('Error al obtener la colección', error);
     }
   }
 
   async getAllYear(year){
     try{
-      await client.connect()
-
-      const calibrations = await database.collection(`calibraciones${year}`).find().toArray()
+      const calibrations = await database.collection(`servicios${year}`).find().toArray()
       return {success:true, data:calibrations, endpoint:'TODOS POR AÑO'}
-    }finally{
-      await client.close();
-
+    }catch(error){
+      if (Boom.isBoom(error)) {
+        throw error
+      }
+      throw Boom.badImplementation('Error al obtener la colección', error);
     }
   }
 
   async getAllYearStatus(year,status){
 
     try{
-      await client.connect()
 
       const query = { status:status }
       const calibrations = await database.collection(`calibraciones${year}`).find(query).toArray()
       return {success:true, data:calibrations, endpoint:'TODOS POR AÑO y STATUS'}
-    }finally{
-      await client.close();
-
+    }catch(error){
+      if (Boom.isBoom(error)) {
+        throw error
+      }
+      throw Boom.badImplementation('Error al obtener la colección', error);
     }
 
   }
 
-  async updateOs(data,year){
-    const equiposIds = data.equiposList.map(id=> new ObjectId(id))
-    const arrayList =data.equiposList
-    delete data.equiposList
-    const fechaObjCal = calcularFechaObjetivo(data.data.fechaRegistro,5)
-    try{
-      await client.connect()
+  async updateOs(data, year) {
+    const equiposIds = data.equiposList.map(id => new ObjectId(id));
+    console.log(equiposIds);
+    const arrayList = data.equiposList;
 
-      const result = await database.collection(`calibraciones${year}`).updateMany(
-        {_id:{$in:equiposIds}},
-        {$set:{datosServicio:{...data.data},status:'Con O.S.',fechaObjCal,isNotificate:false}}
-      )
-      console.log(`Documentos actualizados ${result.modifiedCount}`)
+    delete data.equiposList;
+    const fechaObjCal = calcularFechaObjetivo(data.data.fechaRegistro, 5);
 
-      const resultNewOs = await database.collection('ordenesServicio').updateOne(
-        { os: data.data.os },
-        {
-          $push: {
-            equiposList: {
-              $each:arrayList
-            }
-          }
-        },
-        { upsert: true }
+    try {
+      let isOs = false
+      if(data.data.osFisica === 'no'){
+        isOs=true
+      }
+
+      const newData ={
+        status: 'Con O.S.',
+        fechaObjCal,
+        isOs,
+        servicio:'calibracion'
+      }
+
+      const result = await database.collection(`servicios${year}`).updateMany(
+        { _id: { $in: equiposIds } },
+        { $set: { datosServicio: { ...data.data },...newData  } }
       );
+      console.log(`Documentos actualizados ${result.modifiedCount}`);
 
-      return { success:true, data:{result,resultNewOs}}
-    }finally{
-      await client.close()
-    }
+
+        const collections = await database.listCollections().toArray();
+        const collectionExists = collections.some(col => col.name === 'ordenesServicio');
+
+        if (!collectionExists) {
+            console.log('La colección "ordenesServicio" no existe. Creándola...');
+            await database.collection('ordenesServicio').insertOne({ os: data.data.os, equiposList: [] });
+        }
+
+        const resultOs = await database.collection('ordenesServicio').updateOne(
+            { os: data.data.os },
+            { $addToSet: { equiposList: { $each: arrayList } } }
+        );
+      return { success: true, message: `Documentos actualizados ${result.modifiedCount}, ordenes modificadas:${resultOs.modifiedCount}` };
+    }catch(error){
+        if (Boom.isBoom(error)) {
+          throw error
+        }
+        throw Boom.badImplementation('Error al obtener la colección', error);
+      }
+  }
+
+  async receivedOs(data,year){
 
   }
 
-  async updateCondiciones(data,year){
-    const equiposIds = data.equiposList.map(id=> new ObjectId(id))
-    delete data.equiposList
+  async updateCondiciones(data,year,files){
+    const body = JSON.parse(data.data)
+    const equiposList = JSON.parse(data.equiposList)
+    console.log(files)
+
+
+    const equiposIds = equiposList.map(id=> new ObjectId(id))
+
     try{
-      await client.connect()
-      const result = await database.collection(`calibraciones${year}`).updateMany(
+      const result = await database.collection(`servicios${year}`).updateMany(
         {_id:{$in:equiposIds}},
-        {$set:{datosCondiciones:{...data.data},isNotificate:true}}
+        {$set:{datosCondiciones:{...body,fotos:files},isConditions:true}}
       )
-
-
       return { success:true, data:result}
-
-
-    }finally{await client.close()}
+    }catch(error){
+      if (Boom.isBoom(error)) {
+        throw error
+      }
+      throw Boom.badImplementation('Error al obtener la colección', error);
+    }
   }
 
   async updateCondicionesImg(data,year,files){
     try{
-      await client.connect()
 
       let images=[]
       if(files && files.length){
@@ -142,7 +174,6 @@ class Calibrations{
       return { success:true, data:result}
 
     }finally{
-      await client.close()
     }
   }
 
@@ -153,7 +184,6 @@ class Calibrations{
 
 
     try{
-      await client.connect()
 
       const result = await database.collection(`calibraciones${year}`).updateMany(
         {_id:{$in:equiposIds}},
@@ -162,7 +192,6 @@ class Calibrations{
 
       return { success:true, data:result}
     }finally{
-      await client.close()
     }
 
   }
@@ -205,14 +234,36 @@ class Calibrations{
 
   }
 
+  async getEquipmentsByOs(year,os){
+    try {
+      const equipmentsList = await database.collection('ordenesServicio').find({os}).toArray()
+      const ids = equipmentsList.map(item=>{
+        return item.equipmentsList.map(id=>new ObjectId(id))
+      })
+      console.log(ids)
+      const docs = await database.collection(`servicios${year}`)
+      .find({_id:{$in: ids},isOs:false})
+      .project({cliente:1,marca:1,modelo:1})
+      .toArray()
+
+
+
+      return docs
+    } catch (error) {
+      if(Boom.isBoom(error)){
+        throw error
+      }
+      throw Boom.badImplementation('No se pudo traer la información',error)
+    }
+  }
+
   async getServiceByOs(year,os){
     try {
-      client.connect()
 
       const calibrations = await database.collection('ordenesServicio').findOne({os:os})
       const idEquipments = calibrations.equiposList.map(id => new ObjectId(id))
       console.log(idEquipments)
-      const equipments = await database.collection(`calibraciones${year}`).find({_id:{$in:idEquipments}}).toArray()
+      const equipments = await database.collection(`servicios${year}`).find({_id:{$in:idEquipments}}).toArray()
 
 
 
@@ -220,11 +271,8 @@ class Calibrations{
 
     } catch (error) {
       return error
-    }finally{
-      client.close()
     }
   }
 }
-
 module.exports = Calibrations
 

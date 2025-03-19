@@ -34,10 +34,13 @@ const uploadCondiciones = multer({ storage: storageCondiciones });
 
 const calibration = new Calibrations()
 
+const calibrationsRouter = (io)=>{
+
 router.get('/:year',async (req,res,next)=>{
   const { year } = req.params
   try {
     const getAllCal = await calibration.getAllYear(year)
+    io.emit('response','Se consultaron las bases de datos')
     res.status(200).json(getAllCal)
   } catch (error) {
     next(error)
@@ -49,6 +52,19 @@ router.get('/:year/:status',async (req,res,next)=>{
   try {
     const getAllCal = await calibration.getAllYearStatus(year,status)
     res.status(200).json(getAllCal)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/:year/os-recived/:os',async(req,res,next)=>{
+  const {year,os} = req.params
+  try {
+    const getEquipmentsOs = await calibration.getEquipmentsByOs(year,os)
+    res.status(200).json({
+      success:true,
+      data:getEquipmentsOs
+    })
   } catch (error) {
     next(error)
   }
@@ -68,7 +84,12 @@ router.post('/:year',async (req,res,next)=>{
   const { body, params } = req
   try {
     const newCalibration = await calibration.create(body,params.year)
-    res.status(201).json(newCalibration)
+    io.emit('newRegister',{
+      type:'nuevo',
+      record:{...newCalibration.doc,_id:newCalibration.result.insertedId}
+    })
+    res.status(201).json({
+      success:true,message:'Registro creado'})
   } catch (error) {
     next(error)
   }
@@ -78,26 +99,37 @@ router.patch('/:year/update-os/',async (req,res,next)=>{
   const { body,params } = req
   try {
     const newCalibration = await calibration.updateOs(body,params.year)
+    io.emit('update',{
+      type:'os'
+    })
+
     res.status(201).json(newCalibration)
   } catch (error) {
     next(error)
   }
 })
 
-router.patch('/:year/update-condiciones/',async (req,res,next)=>{
+router.patch('/:year/received-os/',async (req,res,next)=>{
   const { body,params } = req
   try {
-    const newCalibration = await calibration.updateCondiciones(body,params.year)
+    const newCalibration = await calibration.receivedOs(body,params.year)
+    io.emit('update',{
+      type:'os'
+    })
+
     res.status(201).json(newCalibration)
   } catch (error) {
     next(error)
   }
 })
 
-router.patch('/:year/update-condiciones-img/',uploadCondiciones.any(),async (req,res,next)=>{
+
+router.patch('/:year/update-condiciones/',uploadCondiciones.any(),async (req,res,next)=>{
   const { body,params,files } = req
   try {
-    const newCalibration = await calibration.updateCondicionesImg(body,params.year,files)
+    const newCalibration = await calibration.updateCondiciones(body,params.year,files)
+    io.emit('update',{type:'condiciones'})
+
     res.status(201).json(newCalibration)
   } catch (error) {
     next(error)
@@ -124,9 +156,12 @@ router.patch('/:year/update-calibration/',async (req,res,next)=>{
   }
 })
 
+return router
+
+}
 
 
 
 
-module.exports= router
+module.exports= calibrationsRouter
 
