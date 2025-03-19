@@ -12,16 +12,30 @@ const port =process.env.PORT || 3000;
 
 const app = express();
 app.use(express.json())
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 const httpServer = createServer(app)
 
 //Socket.io
-const io = new Server(httpServer,{
-  cors:{
-    origin:`${process.env.URL_FRONTEND || '*'}`, //Para producción hay que colocar la URL del frontend
-    methods:['GET','POST']
+// const io = new Server(httpServer,{
+//   cors:{
+//     origin:`${process.env.URL_FRONTEND || '*'}`,
+//     methods:['GET','POST']
+//   }
+// })
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
   }
-})
+});
 
 io.on('connection',(socket)=>{
   console.log('Nuevo Usuario conectado:',socket.id)
