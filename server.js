@@ -12,31 +12,11 @@ const port =process.env.PORT || 3000;
 
 const app = express();
 app.use(express.json())
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-// 🔹 Responde manualmente a solicitudes OPTIONS
-app.options('*', cors());
-
-// 🔹 Añade encabezados a todas las respuestas
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
+app.use(cors());
 const httpServer = createServer(app)
 
-//Socket.io
-// const io = new Server(httpServer,{
-//   cors:{
-//     origin:`${process.env.URL_FRONTEND || '*'}`,
-//     methods:['GET','POST']
-//   }
-// })
+
+
 
 const io = new Server(httpServer, {
   cors: {
@@ -47,51 +27,78 @@ const io = new Server(httpServer, {
   }
 });
 
-io.on('connection',(socket)=>{
-  console.log('Nuevo Usuario conectado:',socket.id)
+routerAPI(app,io);
+app.use(logErrors);
+app.use(errorHandle);
+app.use('/uploads',express.static("uploads"));
 
-  socket.on('disconnect',()=>{
-    console.log('Usuario desconectado:', socket.id)
-  })
-  //aqui colocaremos los demas mensajes:
-  socket.on('mensaje', (msg) => {
-    console.log('Mensaje recibido:', msg)
-    socket.emit('response', `Bienvenido usuario ${socket.id}`)
-  });
-
-
+httpServer.listen(port,()=>{
+  console.log(`✅ Servidor iniciado en el puerto : ${port}`)
 })
 
-//Funcion para Iniciar el servidor
-const startServer = async()=>{
-  try {
-    await client.connect()
-    console.log('✅ Conectado a MongoDB')
-    //Rutas
-    routerAPI(app,io);
-    app.use(logErrors);
-    app.use(errorHandle);
-    app.use('/uploads',express.static("uploads"));
 
-    httpServer.listen(port,()=>{
-      console.log(`✅ Servidor iniciado en el puerto : ${port}`)
-    })
+//Socket.io
+// const io = new Server(httpServer,{
+//   cors:{
+//     origin:`${process.env.URL_FRONTEND || '*'}`,
+//     methods:['GET','POST']
+//   }
+// })
+
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: "*",
+//     methods: ["GET", "POST"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//     credentials: true
+//   }
+// });
+
+// io.on('connection',(socket)=>{
+//   console.log('Nuevo Usuario conectado:',socket.id)
+
+//   socket.on('disconnect',()=>{
+//     console.log('Usuario desconectado:', socket.id)
+//   })
+//   //aqui colocaremos los demas mensajes:
+//   socket.on('mensaje', (msg) => {
+//     console.log('Mensaje recibido:', msg)
+//     socket.emit('response', `Bienvenido usuario ${socket.id}`)
+//   });
+
+
+// })
+
+// //Funcion para Iniciar el servidor
+// const startServer = async()=>{
+//   try {
+//     await client.connect()
+//     console.log('✅ Conectado a MongoDB')
+//     //Rutas
+//     routerAPI(app,io);
+//     app.use(logErrors);
+//     app.use(errorHandle);
+//     app.use('/uploads',express.static("uploads"));
+
+//     httpServer.listen(port,()=>{
+//       console.log(`✅ Servidor iniciado en el puerto : ${port}`)
+//     })
 
 
 
 
-  } catch (error) {
-    console.error('❌ Error al conectar con MongoDB:', error)
-    process.exit(1)
-  }
-}
+//   } catch (error) {
+//     console.error('❌ Error al conectar con MongoDB:', error)
+//     process.exit(1)
+//   }
+// }
 
-process.on('SIGINT',async()=>{
-  await client.close()
-  console.log('🛑 Conexión con MongoDB cerrada')
-  process.exit(0)
-})
+// process.on('SIGINT',async()=>{
+//   await client.close()
+//   console.log('🛑 Conexión con MongoDB cerrada')
+//   process.exit(0)
+// })
 
-startServer()
+// startServer()
 
 
