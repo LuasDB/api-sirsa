@@ -1,4 +1,8 @@
+const { FieldPath } = require('firebase-admin/firestore');
 const { db,admin,bucket } = require('../db/firebase');
+
+const urlServer = process.env.URL_SERVER
+
 
 class Reports{
   constructor(){
@@ -14,14 +18,10 @@ class Reports{
       for (const item of getReports.docs) {
         const filePath = `${year}/${item.data().nombre_pdf}`;
         console.log(filePath);
-        const file = bucket.file(filePath);
+        const file =`${urlServer}pf/${filePath}`
+        console.log(file);
 
-        const [url] = await file.getSignedUrl({
-          action: 'read',
-          expires: '03-17-2028' // Puedes cambiar la fecha de expiración si lo necesitas
-        });
-
-        reports.push({ id: item.id, ...item.data(), url });
+        reports.push({ id: item.id, ...item.data(), url:file });
       }
 
       console.log(reports);
