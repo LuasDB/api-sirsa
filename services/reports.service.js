@@ -1,7 +1,7 @@
 const { FieldPath } = require('firebase-admin/firestore');
 const { db,admin,bucket } = require('../db/firebase');
 
-const urlServer = process.env.URL_SERVER
+const urlServer = process.env.URL_STORAGE
 
 
 class Reports{
